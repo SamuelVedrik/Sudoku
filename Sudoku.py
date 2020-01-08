@@ -1,14 +1,16 @@
 import tkinter as tk
-from typing import List, Dict
+from typing import List
 import random
+import copy
 
 TEMPLATE_SUDOKU = "template.txt"
+PUZZLE_SIZE = 30
 
 class Sudoku:
     """
     A completed sudoku board.
 
-    The board is represented by a nested list. Each nested list inside
+    The board is represent`ed by a nested list. Each nested list inside
     the main list represents a 3x3 cell, formatted as such:
 
     0 1 2
@@ -20,6 +22,8 @@ class Sudoku:
     The arrangement of each of the 3x3 cell is the same as above.
 
     """
+    _board: List[List[int]]
+
     def __init__(self):
         self._board = None
         self.generate_board()
@@ -64,7 +68,53 @@ class Sudoku:
             function_choice = functions[random.randint(0, 2)]
             function_choice()
 
-#   ==== TRANSFORMATION FUNCTIONS ====
+    def generate_puzzle(self):
+        """
+        Generates a random puzzle based on the current board with
+        PUZZLE_SIZE numbers left.
+        :return: List[List[int]], representing the board. 0 represents
+        an empty cell.
+        """
+
+        result = copy.deepcopy(self._board)
+        # First, goes through each cell to make sure all cells have something
+        # removed.
+        remaining = self._initial_removal(81 - PUZZLE_SIZE, result)
+
+        # Then, picks random cells and removes one until there are no more
+        # remainders.
+        self._completer_removal(remaining, result)
+
+        return result
+
+    def _completer_removal(self, remaining, result):
+
+        while remaining > 0:
+            random_cell = random.randint(0, 8)
+            while result[random_cell].count(0) > 7:
+                random_cell = random.randint(0, 8)
+
+            replaced = random.randint(0, 8)
+            while result[random_cell][replaced] == 0:
+                replaced = random.randint(0, 8)
+
+            result[random_cell][replaced] = 0
+
+            remaining -= 1
+
+    def _initial_removal(self, remaining, result):
+        order = [i for i in range(9)]
+        random.shuffle(order)
+        for i in order:
+            num_replaced = int(random.normalvariate(5, 1))
+            replaced_index = random.sample(range(9), num_replaced)
+            for j in replaced_index:
+                result[i][j] = 0
+
+            remaining -= num_replaced
+        return remaining
+
+    #   ==== TRANSFORMATION FUNCTIONS ====
     def _shuffle_big_randomly(self):
 
         choice = random.randint(0,1)
@@ -98,6 +148,7 @@ class Sudoku:
         self._board[row_a * 3:row_a * 3 + 3], self._board[row_b * 3:row_b * 3 + 3] = \
             self._board[row_b * 3:row_b * 3 + 3], self._board[row_a * 3:row_a * 3 + 3]
 
+
     def _shuffle_small_row(self, row_a, row_b):
         """
         Prerequisite: 0 <= row_a, row_b, <= 9
@@ -105,9 +156,13 @@ class Sudoku:
         """
 
         cells = range((row_a//3) * 3, ((row_a//3) * 3) + 3)
+        slice_a = (row_a%3 * 3, row_a%3 * 3 + 3)
+        slice_b = (row_b%3 * 3, row_b%3 *3 + 3)
         for i in cells:
-            self._board[i][row_a * 3:(row_a * 3) + 3], self._board[i][row_b * 3:(row_b * 3) + 3] \
-                = self._board[i][row_b * 3:(row_b * 3) + 3], self._board[i][row_a * 3:(row_a * 3) + 3]
+
+            self._board[i][slice_a[0]:slice_a[1]], self._board[i][slice_b[0]:slice_b[1]] \
+                = self._board[i][slice_b[0]:slice_b[1]], self._board[i][slice_a[0]:slice_a[1]]
+
 
     def _shuffle_big_column(self, col_a, col_b):
         """
@@ -117,6 +172,7 @@ class Sudoku:
         # The +7 so col_a + 6 is in range.
         for i, j in zip(range(col_a, col_a + 7, 3), range(col_b,col_b + 7, 3)):
             self._board[i] , self._board[j] = self._board[j], self._board[i]
+
 
     def _shuffle_small_column(self, col_a, col_b):
         """
@@ -169,13 +225,13 @@ class SudokuDrawer:
 if __name__ == "__main__":
     mySudoku = Sudoku()
     mySudoku.shuffle()
-    templateSudoku = Sudoku()
+    puzzle = mySudoku.generate_puzzle()
 
     root = tk.Tk()
     drawer = SudokuDrawer(root)
 
     mySudoku.render(drawer)
-    templateSudoku.render(drawer)
+    drawer.draw_board(puzzle)
 
     root.mainloop()
 
